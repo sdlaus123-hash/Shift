@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>シフト希望</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f5f5;
+      font-family: sans-serif;
+      color: #222;
+    }
+
+    .wrap {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #444;
+      font-weight: 700;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+
+    .weekday, .day, .blank {
+      text-align: center;
+      padding: 11px 0;
+      border-radius: 12px;
+    }
+
+    .weekday {
+      background: #f2f2f2;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .day {
+      background: #fff;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+
+    .day.selected {
+      background: #ffe082;
+      border-color: #f4b400;
+      font-weight: 700;
+    }
+
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d8d8d8;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #111;
+      color: #fff;
+    }
+
+    .btn-sub {
+      background: #fff3cd;
+      color: #222;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      background: #fff3cd;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .infoBox {
+      background: #faf8ef;
+      border: 1px solid #eee1a8;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .error {
+      color: #c62828;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 id="title">シフト希望</h1>
+      <div class="muted" id="subtitle">読み込み中...</div>
+
+      <div id="bindView" class="hidden">
+        <div class="section infoBox">初回のみ本人確認をしてください。</div>
+
+        <div class="section">
+          <div class="label">氏名</div>
+          <input id="bindName" placeholder="例：山田太郎" />
+        </div>
+
+        <div class="section">
+          <div class="label">PIN</div>
+          <input id="bindPin" type="password" inputmode="numeric" placeholder="4桁PIN" />
+        </div>
+
+        <div class="section">
+          <button class="btn btn-primary" id="bindBtn">本人確認して開始</button>
+          <div class="error" id="bindError"></div>
+        </div>
+      </div>
+
+      <div id="inactiveView" class="hidden">
+        <div class="section infoBox">現在このアカウントは利用対象外です。管理者に確認してください。</div>
+      </div>
+
+      <div id="viewMode" class="hidden">
+        <div class="section infoBox">
+          <div><strong id="viewMonth"></strong> は提出済みです。</div>
+          <div class="muted" id="viewSubmittedAt"></div>
+        </div>
+
+        <div class="section">
+          <div class="label">休み希望日</div>
+          <div class="chip-list" id="viewDates"></div>
+        </div>
+
+        <div class="section">
+          <div class="label">備考</div>
+          <div id="viewNote" class="muted">-</div>
+        </div>
+
+        <div class="section">
+          <button class="btn btn-sub" id="editBtn">内容を修正する</button>
+        </div>
+      </div>
+
+      <div id="inputMode" class="hidden">
+        <div class="section">
+          <div class="label">休みたい日を選択</div>
+          <div class="calendar" id="calendar"></div>
+        </div>
+
+        <div class="section">
+          <div class="label">選択中</div>
+          <div class="chip-list" id="selectedDates"></div>
+        </div>
+
+        <div class="section">
+          <div class="label">備考（任意）</div>
+          <textarea id="note" maxlength="200" placeholder="例：12日は午前のみ可能です"></textarea>
+        </div>
+
+        <div class="section">
+          <button class="btn btn-primary" id="submitBtn">この内容で送信</button>
+          <div class="error" id="submitError"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxjXYOJtlzWaclaI1q_g1jBkLTlzt8fJk6zj4cTnMXekg2ge37CmL-qoJjyaP9M0Sdl/exec';
+
+    // 今はテスト用。後でLIFF化したら本物のLINE User IDに置き換える
+    const USER_ID = 'demo-user-001';
+
+    let state = {
+      targetMonth: '',
+      driverName: '',
+      selectedDates: [],
+      note: '',
+      submitted: null,
+    };
+
+    function qs(id) {
+      return document.getElementById(id);
+    }
+
+    function showOnly(id) {
+      ['bindView', 'inactiveView', 'viewMode', 'inputMode'].forEach(v => {
+        qs(v).classList.add('hidden');
+      });
+      qs(id).classList.remove('hidden');
+    }
+
+    function splitYm(ym) {
+      const [y, m] = ym.split('-').map(Number);
+      return { year: y, month: m };
+    }
+
+    function monthTitle(ym) {
+      const { year, month } = splitYm(ym);
+      return `${year}年${month}月 シフト希望`;
+    }
+
+    function jpDate(ym, day) {
+      const { month } = splitYm(ym);
+      return `${month}月${day}日`;
+    }
+
+    function buildCalendar(ym) {
+      const { year, month } = splitYm(ym);
+      const firstDay = new Date(year, month - 1, 1).getDay();
+      const lastDate = new Date(year, month, 0).getDate();
+      const calendar = qs('calendar');
+      calendar.innerHTML = '';
+
+      ['日','月','火','水','木','金','土'].forEach(w => {
+        const d = document.createElement('div');
+        d.className = 'weekday';
+        d.textContent = w;
+        calendar.appendChild(d);
+      });
+
+      for (let i = 0; i < firstDay; i++) {
+        const b = document.createElement('div');
+        b.className = 'blank';
+        calendar.appendChild(b);
+      }
+
+      for (let day = 1; day <= lastDate; day++) {
+        const d = document.createElement('div');
+        d.className = 'day';
+        d.textContent = day;
+
+        if (state.selectedDates.includes(day)) {
+          d.classList.add('selected');
+        }
+
+        d.addEventListener('click', () => toggleDate(day));
+        calendar.appendChild(d);
+      }
+    }
+
+    function toggleDate(day) {
+      if (state.selectedDates.includes(day)) {
+        state.selectedDates = state.selectedDates.filter(v => v !== day);
+      } else {
+        state.selectedDates.push(day);
+        state.selectedDates.sort((a, b) => a - b);
+      }
+      buildCalendar(state.targetMonth);
+      renderSelectedDates();
+    }
+
+    function renderSelectedDates() {
+      const area = qs('selectedDates');
+      area.innerHTML = '';
+
+      if (!state.selectedDates.length) {
+        const empty = document.createElement('div');
+        empty.className = 'muted';
+        empty.textContent = '未選択';
+        area.appendChild(empty);
+        return;
+      }
+
+      state.selectedDates.forEach(day => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = jpDate(state.targetMonth, day);
+        area.appendChild(chip);
+      });
+    }
+
+    function renderViewMode(submitted) {
+      qs('viewMonth').textContent = monthTitle(submitted.targetMonth);
+      qs('viewSubmittedAt').textContent =
+        `提出日時: ${new Date(submitted.submittedAt).toLocaleString('ja-JP')}`;
+
+      qs('viewDates').innerHTML = '';
+      submitted.selectedDates.forEach(day => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = jpDate(submitted.targetMonth, day);
+        qs('viewDates').appendChild(chip);
+      });
+
+      qs('viewNote').textContent = submitted.note || 'なし';
+      showOnly('viewMode');
+    }
+
+    async function bootstrap() {
+      qs('bindError').textContent = '';
+      qs('submitError').textContent = '';
+
+      const res = await fetch(`${GAS_URL}?action=bootstrap&userId=${encodeURIComponent(USER_ID)}`);
+      const json = await res.json();
+
+      if (!json.ok) {
+        qs('subtitle').textContent = '読み込みに失敗しました';
+        return;
+      }
+
+      const data = json.data;
+      state.targetMonth = data.targetMonth;
+      state.driverName = data.driverName || '';
+
+      qs('title').textContent = monthTitle(data.targetMonth);
+      qs('subtitle').textContent = state.driverName ? `${state.driverName} さん` : '初回設定';
+
+      if (data.mode === 'bind') {
+        showOnly('bindView');
+        return;
+      }
+
+      if (data.mode === 'inactive') {
+        showOnly('inactiveView');
+        return;
+      }
+
+      if (data.mode === 'view' && data.submitted) {
+        state.submitted = data.submitted;
+        renderViewMode(data.submitted);
+        return;
+      }
+
+      state.selectedDates = [];
+      state.note = '';
+      qs('note').value = '';
+      buildCalendar(state.targetMonth);
+      renderSelectedDates();
+      showOnly('inputMode');
+    }
+
+    async function bindDriver() {
+      qs('bindError').textContent = '';
+
+      const payload = {
+        action: 'bindDriver',
+        userId: USER_ID,
+        name: qs('bindName').value.trim(),
+        pin: qs('bindPin').value.trim(),
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        qs('bindError').textContent = json.error || '本人確認に失敗しました';
+        return;
+      }
+
+      await bootstrap();
+    }
+
+    async function submitShift() {
+      qs('submitError').textContent = '';
+      state.note = qs('note').value.trim();
+
+      if (!state.selectedDates.length) {
+        qs('submitError').textContent = '休み希望日を選んでください';
+        return;
+      }
+
+      const payload = {
+        action: 'submitShift',
+        userId: USER_ID,
+        targetMonth: state.targetMonth,
+        selectedDates: state.selectedDates,
+        note: state.note,
+      };
+
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        qs('submitError').textContent = json.error || '送信に失敗しました';
+        return;
+      }
+
+      state.submitted = json.submitted;
+      renderViewMode(json.submitted);
+    }
+
+    function startEdit() {
+      const submitted = state.submitted;
+      state.selectedDates = [...(submitted.selectedDates || [])];
+      state.note = submitted.note || '';
+      qs('note').value = state.note;
+      buildCalendar(state.targetMonth);
+      renderSelectedDates();
+      showOnly('inputMode');
+    }
+
+    qs('bindBtn').addEventListener('click', bindDriver);
+    qs('submitBtn').addEventListener('click', submitShift);
+    qs('editBtn').addEventListener('click', startEdit);
+
+    bootstrap();
+  </script>
+</body>
+</html>
