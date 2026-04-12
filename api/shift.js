@@ -1,4 +1,4 @@
-const GAS_URL = 'ここにあなたのGASのexec URLを入れる';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxjXYOJtlzWaclaI1q_g1jBkLTlzt8fJk6zj4cTnMXekg2ge37CmL-qoJjyaP9M0Sdl/exec';
 
 module.exports = async (req, res) => {
   try {
