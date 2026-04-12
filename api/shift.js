@@ -27,12 +27,17 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
+      const body =
+        typeof req.body === 'string'
+          ? JSON.parse(req.body || '{}')
+          : (req.body || {});
+
       const upstream = await fetch(GAS_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        body: JSON.stringify(req.body || {}),
+        body: JSON.stringify(body),
       });
 
       const text = await upstream.text();
