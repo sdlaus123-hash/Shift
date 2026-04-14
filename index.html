@@ -1,110 +1,201 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>シフト希望</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト希望</title>
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
 </head>
 
-<body class="bg-gradient-to-b from-yellow-50 to-stone-100 text-stone-800">
+<body class="bg-gradient-to-b from-yellow-50 to-stone-100">
 
 <div class="max-w-md mx-auto p-4 pb-24">
 
   <!-- ヘッダー -->
   <div class="bg-black text-white rounded-3xl p-6 shadow-2xl mb-4">
     <div class="text-xs text-yellow-300 mb-2">シフト希望</div>
-    <h1 class="text-2xl font-bold">シフト提出</h1>
-    <p class="text-sm text-white/60">休みたい日を選択してください</p>
+    <h1 class="text-2xl font-bold" id="title">読み込み中...</h1>
+    <p class="text-sm text-white/60" id="subtitle"></p>
   </div>
 
-  <!-- カード -->
-  <div class="bg-white rounded-3xl shadow-xl p-4">
+  <!-- 本人確認 -->
+  <div id="bind" class="hidden bg-white rounded-3xl p-4 shadow-xl">
+    <input id="name" placeholder="名前" class="w-full border p-3 rounded-xl mb-3">
+    <input id="pin" placeholder="PIN" class="w-full border p-3 rounded-xl mb-3">
+    <button onclick="bindUser()" class="w-full bg-black text-white py-3 rounded-xl">開始</button>
+  </div>
+
+  <!-- 入力 -->
+  <div id="input" class="hidden bg-white rounded-3xl p-4 shadow-xl">
 
     <div class="mb-4">
-      <div class="text-sm font-bold mb-2">カレンダー</div>
+      <div class="font-bold mb-2">日付選択</div>
       <div id="calendar" class="grid grid-cols-7 gap-2"></div>
     </div>
 
     <div class="mb-4">
-      <div class="text-sm font-bold mb-2">選択中</div>
+      <div class="font-bold mb-2">選択中</div>
       <div id="selected" class="flex flex-wrap gap-2 text-sm"></div>
     </div>
 
-    <textarea id="note"
-      class="w-full border rounded-xl p-3 mb-4"
-      placeholder="備考（任意）"></textarea>
+    <textarea id="note" class="w-full border rounded-xl p-3 mb-4" placeholder="備考"></textarea>
 
-    <button onclick="submit()"
-      class="w-full bg-black text-white py-3 rounded-xl font-bold">
-      送信する
+    <button onclick="submit()" class="w-full bg-black text-white py-3 rounded-xl font-bold">
+      送信
     </button>
+  </div>
 
+  <!-- 確認 -->
+  <div id="view" class="hidden bg-white rounded-3xl p-4 shadow-xl">
+    <div class="text-green-600 font-bold mb-2">送信済み</div>
+
+    <div id="viewDates" class="mb-2"></div>
+    <div id="viewNote" class="mb-4 text-sm text-gray-600"></div>
+
+    <button onclick="edit()" class="w-full bg-yellow-300 py-3 rounded-xl">
+      変更する
+    </button>
   </div>
 
 </div>
 
 <script>
+const API = '/api/shift';
+const USER = 'demo-user-001';
+
+const days = ["日","月","火","水","木","金","土"];
+
 let selected = [];
+let currentData = null;
+
+async function init(){
+  const res = await fetch(API + "?action=bootstrap&userId=" + USER);
+  const json = await res.json();
+
+  if(json.mode === "bind"){
+    show("bind");
+    return;
+  }
+
+  if(json.mode === "view"){
+    currentData = json.submitted;
+    showView();
+    return;
+  }
+
+  show("input");
+  build();
+}
+
+function show(id){
+  ["bind","input","view"].forEach(v=>{
+    document.getElementById(v).classList.add("hidden");
+  });
+  document.getElementById(id).classList.remove("hidden");
+}
 
 function build(){
-  const cal = document.getElementById('calendar');
-  cal.innerHTML = '';
+  const cal = document.getElementById("calendar");
+  cal.innerHTML = "";
+
+  days.forEach(d=>{
+    cal.innerHTML += `<div class="text-xs text-center text-gray-400">${d}</div>`;
+  });
 
   for(let i=1;i<=31;i++){
-    const d = document.createElement('div');
-    d.className = "p-3 text-center border rounded-xl cursor-pointer";
+    const date = new Date();
+    date.setDate(i);
+    const w = date.getDay();
 
-    if(selected.includes(i)){
-      d.className += " bg-yellow-300 font-bold";
-    }
+    const active = selected.includes(i);
 
-    d.innerText = i;
-
-    d.onclick = ()=>{
-      if(selected.includes(i)){
-        selected = selected.filter(v=>v!==i);
-      }else{
-        selected.push(i);
-      }
-      render();
-    };
-
-    cal.appendChild(d);
+    cal.innerHTML += `
+      <div onclick="toggle(${i})"
+        class="p-2 text-center border rounded-xl cursor-pointer
+        ${active ? 'bg-yellow-300 font-bold' : ''}">
+        <div>${i}</div>
+        <div class="text-xs text-gray-400">${days[w]}</div>
+      </div>
+    `;
   }
+}
+
+function toggle(i){
+  if(selected.includes(i)){
+    selected = selected.filter(v=>v!==i);
+  }else{
+    selected.push(i);
+  }
+  render();
 }
 
 function render(){
   build();
-
-  const el = document.getElementById('selected');
-  el.innerHTML = '';
-
+  const el = document.getElementById("selected");
+  el.innerHTML = "";
   selected.forEach(d=>{
     el.innerHTML += `<div class="bg-yellow-100 px-2 py-1 rounded">${d}日</div>`;
   });
 }
 
+async function bindUser(){
+  await fetch(API,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      action:'bindDriver',
+      userId:USER,
+      name:document.getElementById("name").value,
+      pin:document.getElementById("pin").value
+    })
+  });
+  location.reload();
+}
+
 async function submit(){
-  await fetch('/api/shift',{
+  const res = await fetch(API,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       action:'submitShift',
-      userId:'demo-user-001',
+      userId:USER,
       selectedDates:selected,
-      note:document.getElementById('note').value,
-      targetMonth:'test'
+      note:document.getElementById("note").value
     })
   });
 
-  alert("送信完了");
+  const json = await res.json();
+
+  if(json.ok){
+    currentData = {
+      selectedDates:selected,
+      note:document.getElementById("note").value
+    };
+    showView();
+  }
 }
 
-build();
+function showView(){
+  show("view");
+
+  const d = currentData.selectedDates || [];
+  document.getElementById("viewDates").innerHTML =
+    d.map(v=>`<span class="mr-2">${v}日</span>`).join("");
+
+  document.getElementById("viewNote").innerText =
+    currentData.note || "";
+}
+
+function edit(){
+  selected = currentData.selectedDates || [];
+  document.getElementById("note").value = currentData.note || "";
+  show("input");
+  render();
+}
+
+init();
 </script>
 
 </body>
