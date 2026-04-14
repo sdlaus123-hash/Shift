@@ -72,34 +72,6 @@ body{
 
 .hidden{display:none !important;}
 
-.fade-in{
-  animation:fadeIn .28s ease both;
-}
-
-.pop-in{
-  animation:popIn .28s ease both;
-}
-
-.shake{
-  animation:shake .26s ease both;
-}
-
-@keyframes fadeIn{
-  from{opacity:0; transform:translateY(8px);}
-  to{opacity:1; transform:translateY(0);}
-}
-
-@keyframes popIn{
-  0%{opacity:0; transform:scale(.98) translateY(6px);}
-  100%{opacity:1; transform:scale(1) translateY(0);}
-}
-
-@keyframes shake{
-  0%,100%{transform:translateX(0);}
-  25%{transform:translateX(-4px);}
-  75%{transform:translateX(4px);}
-}
-
 .label{
   font-size:14px;
   font-weight:700;
@@ -137,22 +109,22 @@ textarea{
   margin-top:12px;
   font-size:16px;
   font-weight:700;
-  transition:transform .08s ease, opacity .12s ease, filter .12s ease;
-  position:relative;
+  transition:transform .08s ease, opacity .12s ease;
 }
 
 .btn:active{
   transform:scale(.99);
 }
 
-.btn[disabled]{
-  opacity:.72;
-  cursor:not-allowed;
-  filter:saturate(.9);
+.main{
+  background:var(--brand);
+  color:#fff;
 }
 
-.main{background:#111;color:#fff;}
-.sub{background:#ffd95c;color:#111;}
+.sub{
+  background:var(--accent);
+  color:#111;
+}
 
 .info{
   background:var(--info-bg);
@@ -234,7 +206,6 @@ textarea{
 
 .day .dow{
   font-size:10px;
-  color:#888;
   margin-top:4px;
   line-height:1;
 }
@@ -302,84 +273,6 @@ textarea{
   background:#fafafa;
 }
 
-.loading-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(246,244,238,.78);
-  backdrop-filter:blur(4px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:999;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .18s ease;
-}
-
-.loading-overlay.show{
-  opacity:1;
-  pointer-events:auto;
-}
-
-.loading-box{
-  background:#fff;
-  border-radius:18px;
-  padding:18px 20px;
-  box-shadow:0 12px 28px rgba(0,0,0,.1);
-  text-align:center;
-  min-width:180px;
-}
-
-.spinner{
-  width:30px;
-  height:30px;
-  border:3px solid #ece7db;
-  border-top-color:#111;
-  border-radius:50%;
-  margin:0 auto 12px;
-  animation:spin .8s linear infinite;
-}
-
-.loading-text{
-  font-size:14px;
-  color:#444;
-  font-weight:700;
-}
-
-.loading-sub{
-  font-size:12px;
-  color:#777;
-  margin-top:6px;
-}
-
-@keyframes spin{
-  to{transform:rotate(360deg);}
-}
-
-.toast{
-  position:fixed;
-  left:50%;
-  bottom:24px;
-  transform:translateX(-50%) translateY(20px);
-  background:#111;
-  color:#fff;
-  padding:12px 14px;
-  border-radius:999px;
-  font-size:13px;
-  box-shadow:0 10px 20px rgba(0,0,0,.18);
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .2s ease, transform .2s ease;
-  z-index:1000;
-  max-width:calc(100vw - 32px);
-  text-align:center;
-}
-
-.toast.show{
-  opacity:1;
-  transform:translateX(-50%) translateY(0);
-}
-
 @media (max-width:380px){
   .wrap{
     padding:12px;
@@ -405,7 +298,6 @@ textarea{
     <div id="subtitle" style="font-size:14px;color:rgba(255,255,255,.7);">確認しています...</div>
   </div>
 
-  <!-- 本人確認 -->
   <div id="bind" class="card hidden">
     <div class="info">
       初回のみ本人確認をしてください。<br>
@@ -418,11 +310,10 @@ textarea{
     <div class="label">PIN</div>
     <input id="pin" placeholder="PIN" inputmode="numeric">
 
-    <button id="bindBtn" class="btn main" onclick="bindUser()">本人確認して開始</button>
+    <button class="btn main" onclick="bindUser()">本人確認して開始</button>
     <div id="bindError" class="error"></div>
   </div>
 
-  <!-- 入力 -->
   <div id="input" class="card hidden">
     <div class="label">休みたい日を選択</div>
     <div id="calendar" class="calendar"></div>
@@ -433,14 +324,11 @@ textarea{
     <div class="label" style="margin-top:16px;">備考（任意）</div>
     <textarea id="note" placeholder="備考"></textarea>
 
-    <button id="submitBtn" class="btn main" onclick="submitShift()">送信</button>
+    <button class="btn main" onclick="submitShift()">送信</button>
     <div id="submitError" class="error"></div>
   </div>
 
-  <!-- 確認 -->
   <div id="view" class="card hidden">
-    <div id="successBanner" class="success hidden">送信が完了しました。</div>
-
     <div class="success">送信済みです。内容を確認できます。</div>
 
     <div class="box">
@@ -462,16 +350,6 @@ textarea{
   </div>
 </div>
 
-<div id="loadingOverlay" class="loading-overlay">
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <div id="loadingText" class="loading-text">処理中...</div>
-    <div id="loadingSub" class="loading-sub">しばらくお待ちください</div>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
-
 <script>
 const API = '/api/shift';
 const USER = 'demo-user-001';
@@ -480,18 +358,36 @@ const DAYS = ['日','月','火','水','木','金','土'];
 let selected = [];
 let currentData = null;
 let targetMonth = '';
-let isSubmitting = false;
-let isBinding = false;
+
+function getStorageKey(month = targetMonth){
+  return `shift_cache_${USER}_${month || 'unknown'}`;
+}
+
+function saveLocalCache(data){
+  if(!data || !data.targetMonth) return;
+  localStorage.setItem(getStorageKey(data.targetMonth), JSON.stringify(data));
+}
+
+function loadLocalCache(month){
+  if(!month) return null;
+  try{
+    const raw = localStorage.getItem(getStorageKey(month));
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){
+    return null;
+  }
+}
+
+function clearLocalCache(month){
+  if(!month) return;
+  localStorage.removeItem(getStorageKey(month));
+}
 
 function show(id){
   ['bind','input','view'].forEach(v=>{
-    const el = document.getElementById(v);
-    el.classList.add('hidden');
-    el.classList.remove('fade-in');
+    document.getElementById(v).classList.add('hidden');
   });
-  const target = document.getElementById(id);
-  target.classList.remove('hidden');
-  target.classList.add('fade-in');
+  document.getElementById(id).classList.remove('hidden');
 }
 
 function monthTitle(ym){
@@ -505,38 +401,6 @@ function dayLabel(day){
   const [y,m] = targetMonth.split('-').map(Number);
   const d = new Date(y, m - 1, day);
   return `${day}日（${DAYS[d.getDay()]}）`;
-}
-
-function setButtonLoading(btn, isLoading, text, loadingText){
-  if(!btn) return;
-  if(isLoading){
-    btn.dataset.originalText = btn.textContent;
-    btn.textContent = loadingText || '処理中...';
-    btn.disabled = true;
-  }else{
-    btn.textContent = btn.dataset.originalText || text || btn.textContent;
-    btn.disabled = false;
-  }
-}
-
-function showLoading(text = '処理中...', sub = 'しばらくお待ちください'){
-  document.getElementById('loadingText').textContent = text;
-  document.getElementById('loadingSub').textContent = sub;
-  document.getElementById('loadingOverlay').classList.add('show');
-}
-
-function hideLoading(){
-  document.getElementById('loadingOverlay').classList.remove('show');
-}
-
-function showToast(message){
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.add('show');
-  clearTimeout(showToast._timer);
-  showToast._timer = setTimeout(()=>{
-    toast.classList.remove('show');
-  }, 1800);
 }
 
 function buildCalendar(){
@@ -589,7 +453,6 @@ function buildCalendar(){
     `;
 
     cell.onclick = ()=>{
-      if(isSubmitting) return;
       if(selected.includes(i)){
         selected = selected.filter(v=>v!==i);
       }else{
@@ -614,14 +477,15 @@ function renderSelected(){
   }
 
   selected.forEach(d=>{
-    el.innerHTML += `<span class="chip pop-in">${dayLabel(d)}</span>`;
+    el.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
   });
 }
 
-function showView(showCompletion = false){
+function showView(){
   show('view');
 
-  document.getElementById('viewMonth').innerText = monthTitle(currentData.targetMonth || targetMonth);
+  document.getElementById('viewMonth').innerText =
+    monthTitle(currentData.targetMonth || targetMonth);
 
   const datesEl = document.getElementById('viewDates');
   datesEl.innerHTML = '';
@@ -631,30 +495,32 @@ function showView(showCompletion = false){
     datesEl.innerHTML = '<div class="muted">なし</div>';
   }else{
     dates.forEach(d=>{
-      datesEl.innerHTML += `<span class="chip pop-in">${dayLabel(d)}</span>`;
+      datesEl.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
     });
   }
 
   document.getElementById('viewNote').innerText = currentData.note || 'なし';
+}
 
-  const banner = document.getElementById('successBanner');
-  if(showCompletion){
-    banner.classList.remove('hidden');
-    banner.classList.add('pop-in');
-    showToast('送信が完了しました');
+function enterInputModeWithCurrentData(){
+  if(currentData){
+    selected = [...(currentData.selectedDates || [])];
+    document.getElementById('note').value = currentData.note || '';
   }else{
-    banner.classList.add('hidden');
-    banner.classList.remove('pop-in');
+    selected = [];
+    document.getElementById('note').value = '';
   }
+  buildCalendar();
+  renderSelected();
+  show('input');
 }
 
 async function init(){
   try{
-    showLoading('読み込み中...', '提出状況を確認しています');
-
-    const res = await fetch(API + '?action=bootstrap&userId=' + encodeURIComponent(USER) + '&_t=' + Date.now(), {
-      cache: 'no-store'
-    });
+    const res = await fetch(
+      API + '?action=bootstrap&userId=' + encodeURIComponent(USER) + '&_t=' + Date.now(),
+      { cache: 'no-store' }
+    );
     const json = await res.json();
 
     const payload = json.data ? json.data : json;
@@ -662,65 +528,68 @@ async function init(){
     if(json.ok === false){
       document.getElementById('title').innerText = '読み込みエラー';
       document.getElementById('subtitle').innerText = json.error || '取得に失敗しました';
-      hideLoading();
       return;
     }
 
     targetMonth = payload.targetMonth || '';
-    document.getElementById('title').innerText = targetMonth ? `${monthTitle(targetMonth)} シフト希望` : 'シフト希望';
-    document.getElementById('subtitle').innerText = payload.driverName ? `${payload.driverName} さん` : '確認しています...';
+    document.getElementById('title').innerText =
+      targetMonth ? `${monthTitle(targetMonth)} シフト希望` : 'シフト希望';
+    document.getElementById('subtitle').innerText =
+      payload.driverName ? `${payload.driverName} さん` : '確認しています...';
 
     if(payload.mode === 'bind'){
       show('bind');
-      hideLoading();
       return;
     }
 
     if(payload.mode === 'inactive'){
       document.getElementById('subtitle').innerText = '利用対象外です';
-      hideLoading();
       return;
     }
 
     if(payload.mode === 'view' && payload.submitted){
-      currentData = payload.submitted;
+      currentData = {
+        targetMonth: payload.submitted.targetMonth || targetMonth,
+        selectedDates: payload.submitted.selectedDates || [],
+        note: payload.submitted.note || ''
+      };
+
       targetMonth = currentData.targetMonth || targetMonth;
-      showView(false);
-      hideLoading();
+      selected = [...currentData.selectedDates];
+      saveLocalCache(currentData);
+      showView();
       return;
     }
 
     if(payload.mode === 'input'){
-      selected = [];
+      const cached = loadLocalCache(targetMonth);
+      if(cached && cached.targetMonth === targetMonth){
+        currentData = cached;
+        selected = [...(currentData.selectedDates || [])];
+        showView();
+        return;
+      }
+
       currentData = null;
+      selected = [];
       document.getElementById('note').value = '';
       buildCalendar();
       renderSelected();
       show('input');
-      hideLoading();
       return;
     }
 
     document.getElementById('subtitle').innerText = '想定外の返り値です';
-    hideLoading();
   }catch(err){
     document.getElementById('title').innerText = '通信エラー';
     document.getElementById('subtitle').innerText = String(err);
-    hideLoading();
   }
 }
 
 async function bindUser(){
-  if(isBinding) return;
-
   document.getElementById('bindError').innerText = '';
-  const btn = document.getElementById('bindBtn');
 
   try{
-    isBinding = true;
-    setButtonLoading(btn, true, '本人確認して開始', '確認中...');
-    showLoading('本人確認中...', '内容を照合しています');
-
     const res = await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -734,46 +603,32 @@ async function bindUser(){
 
     const json = await res.json();
     if(!json.ok){
-      document.getElementById('bind').classList.remove('shake');
-      void document.getElementById('bind').offsetWidth;
-      document.getElementById('bind').classList.add('shake');
-      document.getElementById('bindError').innerText = json.error || '本人確認に失敗しました';
-      hideLoading();
+      document.getElementById('bindError').innerText =
+        json.error || '本人確認に失敗しました';
       return;
     }
 
-    showToast('本人確認が完了しました');
     await init();
   }catch(err){
     document.getElementById('bindError').innerText = String(err);
-    hideLoading();
-  }finally{
-    isBinding = false;
-    setButtonLoading(btn, false, '本人確認して開始');
-    hideLoading();
   }
 }
 
 async function submitShift(){
-  if(isSubmitting) return;
-
   document.getElementById('submitError').innerText = '';
 
   if(selected.length === 0){
-    document.getElementById('input').classList.remove('shake');
-    void document.getElementById('input').offsetWidth;
-    document.getElementById('input').classList.add('shake');
     document.getElementById('submitError').innerText = '休み希望日を選択してください';
     return;
   }
 
-  const btn = document.getElementById('submitBtn');
+  const draftData = {
+    targetMonth,
+    selectedDates: [...selected],
+    note: document.getElementById('note').value || ''
+  };
 
   try{
-    isSubmitting = true;
-    setButtonLoading(btn, true, '送信', '送信中...');
-    showLoading('送信中...', 'シフト希望を保存しています');
-
     const res = await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -789,44 +644,27 @@ async function submitShift(){
     const json = await res.json();
 
     if(!json.ok){
-      document.getElementById('input').classList.remove('shake');
-      void document.getElementById('input').offsetWidth;
-      document.getElementById('input').classList.add('shake');
-      document.getElementById('submitError').innerText = json.error || '送信に失敗しました';
-      hideLoading();
+      document.getElementById('submitError').innerText =
+        json.error || '送信に失敗しました';
       return;
     }
 
-    currentData = json.submitted || {
-      targetMonth,
-      selectedDates:[...selected],
-      note:document.getElementById('note').value
-    };
+    currentData = json.submitted || draftData;
 
-    hideLoading();
+    if(!currentData.targetMonth){
+      currentData.targetMonth = targetMonth;
+    }
 
-    requestAnimationFrame(()=>{
-      showView(true);
-    });
+    selected = [...(currentData.selectedDates || [])];
+    saveLocalCache(currentData);
+    showView();
   }catch(err){
     document.getElementById('submitError').innerText = String(err);
-    hideLoading();
-  }finally{
-    isSubmitting = false;
-    setButtonLoading(btn, false, '送信');
-    hideLoading();
   }
 }
 
 function editShift(){
-  if(currentData){
-    selected = [...(currentData.selectedDates || [])];
-    document.getElementById('note').value = currentData.note || '';
-  }
-  buildCalendar();
-  renderSelected();
-  show('input');
-  showToast('編集モードに切り替えました');
+  enterInputModeWithCurrentData();
 }
 
 init();
