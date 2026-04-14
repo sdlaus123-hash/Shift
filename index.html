@@ -18,17 +18,12 @@ body{
   padding:16px;
 }
 
-/* ヘッダー */
 .header{
   background:#111;
   color:#fff;
   padding:20px;
   border-radius:20px;
   margin-bottom:16px;
-}
-
-.header small{
-  color:#ffd95c;
 }
 
 .card{
@@ -38,7 +33,6 @@ body{
   box-shadow:0 10px 25px rgba(0,0,0,.08);
 }
 
-/* カレンダー */
 .calendar{
   display:grid;
   grid-template-columns:repeat(7,1fr);
@@ -46,10 +40,11 @@ body{
 }
 
 .day{
-  padding:12px;
+  padding:10px;
   text-align:center;
   border:1px solid #ddd;
   border-radius:10px;
+  font-size:14px;
 }
 
 .selected{
@@ -57,7 +52,6 @@ body{
   font-weight:bold;
 }
 
-/* ボタン */
 .btn{
   width:100%;
   padding:14px;
@@ -67,27 +61,10 @@ body{
   font-size:16px;
 }
 
-.btn-main{
-  background:#111;
-  color:#fff;
-}
+.main{background:#111;color:#fff;}
+.sub{background:#ffd95c;}
 
-.btn-sub{
-  background:#ffd95c;
-}
-
-/* チップ */
-.chip{
-  display:inline-block;
-  padding:6px 10px;
-  margin:4px;
-  border-radius:20px;
-  background:#fff4c7;
-}
-
-.hidden{
-  display:none;
-}
+.hidden{display:none;}
 </style>
 </head>
 
@@ -96,34 +73,76 @@ body{
 <div class="wrap">
 
 <div class="header">
-  <small>シフト希望</small>
-  <h2>シフト提出</h2>
+  <h2 id="title">読み込み中...</h2>
 </div>
 
-<div id="input" class="card">
-
-<div class="calendar" id="calendar"></div>
-
-<div id="selected"></div>
-
-<textarea id="note" placeholder="備考"></textarea>
-
-<button class="btn btn-main" onclick="submit()">送信</button>
-
+<!-- 本人確認 -->
+<div id="bind" class="card hidden">
+  <input id="name" placeholder="名前" class="btn">
+  <input id="pin" placeholder="PIN" class="btn">
+  <button class="btn main" onclick="bind()">本人確認</button>
 </div>
 
+<!-- 入力 -->
+<div id="input" class="card hidden">
+  <div id="calendar" class="calendar"></div>
+
+  <div id="selected"></div>
+
+  <textarea id="note" placeholder="備考"></textarea>
+
+  <button class="btn main" onclick="submit()">送信</button>
+</div>
+
+<!-- 確認 -->
 <div id="view" class="card hidden">
-<h3>送信完了</h3>
-<div id="viewDates"></div>
-<div id="viewNote"></div>
-<button class="btn btn-sub" onclick="edit()">変更</button>
+  <h3>送信済み</h3>
+  <div id="viewDates"></div>
+  <div id="viewNote"></div>
+
+  <button class="btn sub" onclick="edit()">変更する</button>
 </div>
 
 </div>
 
 <script>
-let selected=[];
+const API = '/api/shift';
+const USER = 'demo-user-001';
 
+let selected=[];
+let current=null;
+
+// ===== 初期 =====
+async function init(){
+  const res = await fetch(API+'?action=bootstrap&userId='+USER);
+  const json = await res.json();
+
+  if(json.mode==='bind'){
+    show('bind');
+    return;
+  }
+
+  if(json.mode==='view'){
+    current = json.data;
+    showView();
+    return;
+  }
+
+  if(json.mode==='input'){
+    show('input');
+    build();
+  }
+}
+
+// ===== 表示切替 =====
+function show(id){
+  ['bind','input','view'].forEach(v=>{
+    document.getElementById(v).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ===== カレンダー =====
 function build(){
   const cal=document.getElementById('calendar');
   cal.innerHTML='';
@@ -152,40 +171,70 @@ function render(){
   build();
   const el=document.getElementById('selected');
   el.innerHTML='';
-
   selected.forEach(d=>{
-    el.innerHTML+=`<span class="chip">${d}日</span>`;
+    el.innerHTML+=`<span>${d}日 </span>`;
   });
 }
 
+// ===== 本人確認 =====
+async function bind(){
+  await fetch(API,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      action:'bindDriver',
+      userId:USER,
+      name:document.getElementById('name').value,
+      pin:document.getElementById('pin').value
+    })
+  });
+  location.reload();
+}
+
+// ===== 送信 =====
 async function submit(){
-  await fetch('/api/shift',{
+  const res = await fetch(API,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
       action:'submitShift',
-      userId:'demo-user-001',
+      userId:USER,
       selectedDates:selected,
       note:document.getElementById('note').value
     })
   });
 
-  document.getElementById('input').classList.add('hidden');
-  document.getElementById('view').classList.remove('hidden');
+  const json = await res.json();
+
+  if(json.ok){
+    current={
+      selectedDates:selected,
+      note:document.getElementById('note').value
+    };
+    showView();
+  }
+}
+
+// ===== 表示 =====
+function showView(){
+  show('view');
 
   document.getElementById('viewDates').innerHTML =
-    selected.map(d=>`${d}日`).join(',');
+    current.selectedDates.map(v=>v+'日').join(',');
 
   document.getElementById('viewNote').innerText =
-    document.getElementById('note').value;
+    current.note || '';
 }
 
+// ===== 編集 =====
 function edit(){
-  document.getElementById('input').classList.remove('hidden');
-  document.getElementById('view').classList.add('hidden');
+  selected=current.selectedDates;
+  document.getElementById('note').value=current.note;
+  show('input');
+  render();
 }
 
-build();
+init();
 </script>
 
 </body>
