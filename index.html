@@ -2,56 +2,60 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>シフト希望</title>
-
 <style>
 body{
   margin:0;
-  font-family:-apple-system;
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
   background:#f6f4ee;
+  color:#222;
 }
-
 .wrap{
   max-width:420px;
   margin:auto;
   padding:16px;
 }
-
 .header{
   background:#111;
   color:#fff;
   padding:20px;
   border-radius:20px;
   margin-bottom:16px;
+  box-shadow:0 10px 25px rgba(0,0,0,.12);
 }
-
+.header small{
+  color:#ffd95c;
+  display:block;
+  margin-bottom:6px;
+}
 .card{
   background:#fff;
   border-radius:20px;
   padding:16px;
   box-shadow:0 10px 25px rgba(0,0,0,.08);
 }
+.hidden{display:none !important;}
 
-.calendar{
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:6px;
-}
-
-.day{
-  padding:10px;
-  text-align:center;
-  border:1px solid #ddd;
-  border-radius:10px;
+.label{
   font-size:14px;
+  font-weight:700;
+  margin:10px 0 8px;
 }
-
-.selected{
-  background:#ffd95c;
-  font-weight:bold;
+input, textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #ddd;
+  border-radius:14px;
+  padding:14px;
+  font-size:16px;
+  margin-bottom:10px;
+  background:#fff;
 }
-
+textarea{
+  min-height:100px;
+  resize:vertical;
+}
 .btn{
   width:100%;
   padding:14px;
@@ -59,82 +63,176 @@ body{
   border-radius:14px;
   margin-top:12px;
   font-size:16px;
+  font-weight:700;
+}
+.main{background:#111;color:#fff;}
+.sub{background:#ffd95c;color:#111;}
+
+.info{
+  background:#fff6dc;
+  border:1px solid #f0dfaa;
+  padding:12px;
+  border-radius:14px;
+  font-size:14px;
+  line-height:1.6;
+  margin-bottom:12px;
 }
 
-.main{background:#111;color:#fff;}
-.sub{background:#ffd95c;}
+.success{
+  background:#eef8ef;
+  border:1px solid #b9dcbd;
+  color:#1f5f2a;
+  padding:12px;
+  border-radius:14px;
+  font-size:14px;
+  line-height:1.6;
+  margin-bottom:12px;
+  font-weight:700;
+}
 
-.hidden{display:none;}
+.calendar{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+  margin-top:12px;
+}
+.week{
+  text-align:center;
+  font-size:11px;
+  color:#777;
+  font-weight:700;
+}
+.day{
+  min-height:58px;
+  padding:8px 4px;
+  text-align:center;
+  border:1px solid #ddd;
+  border-radius:12px;
+  cursor:pointer;
+  background:#fff;
+}
+.day .num{
+  font-size:15px;
+  font-weight:700;
+}
+.day .dow{
+  font-size:10px;
+  color:#888;
+  margin-top:4px;
+}
+.selected{
+  background:#ffd95c;
+  font-weight:bold;
+  border-color:#e0b93d;
+}
+.selected .dow{
+  color:#5f4b00;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+.chip{
+  display:inline-block;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#fff4c7;
+  font-size:13px;
+}
+.error{
+  color:#b3261e;
+  font-size:14px;
+  margin-top:10px;
+  white-space:pre-wrap;
+}
+.muted{
+  color:#666;
+  font-size:14px;
+}
+.box{
+  border:1px solid #eee;
+  border-radius:14px;
+  padding:12px;
+  margin-top:10px;
+  background:#fafafa;
+}
 </style>
 </head>
-
 <body>
 
 <div class="wrap">
+  <div class="header">
+    <small>シフト希望</small>
+    <h2 id="title" style="margin:0 0 6px;">読み込み中...</h2>
+    <div id="subtitle" style="font-size:14px;color:rgba(255,255,255,.7);">確認しています...</div>
+  </div>
 
-<div class="header">
-  <h2 id="title">読み込み中...</h2>
-</div>
+  <!-- 本人確認 -->
+  <div id="bind" class="card hidden">
+    <div class="info">
+      初回のみ本人確認をしてください。<br>
+      一度紐づけば、次回からは自動で提出内容を表示します。
+    </div>
 
-<!-- 本人確認 -->
-<div id="bind" class="card hidden">
-  <input id="name" placeholder="名前" class="btn">
-  <input id="pin" placeholder="PIN" class="btn">
-  <button class="btn main" onclick="bind()">本人確認</button>
-</div>
+    <div class="label">氏名</div>
+    <input id="name" placeholder="名前">
 
-<!-- 入力 -->
-<div id="input" class="card hidden">
-  <div id="calendar" class="calendar"></div>
+    <div class="label">PIN</div>
+    <input id="pin" placeholder="PIN" inputmode="numeric">
 
-  <div id="selected"></div>
+    <button class="btn main" onclick="bindUser()">本人確認して開始</button>
+    <div id="bindError" class="error"></div>
+  </div>
 
-  <textarea id="note" placeholder="備考"></textarea>
+  <!-- 入力 -->
+  <div id="input" class="card hidden">
+    <div class="label">休みたい日を選択</div>
+    <div id="calendar" class="calendar"></div>
 
-  <button class="btn main" onclick="submit()">送信</button>
-</div>
+    <div class="label" style="margin-top:16px;">選択中</div>
+    <div id="selected" class="chips"></div>
 
-<!-- 確認 -->
-<div id="view" class="card hidden">
-  <h3>送信済み</h3>
-  <div id="viewDates"></div>
-  <div id="viewNote"></div>
+    <div class="label" style="margin-top:16px;">備考（任意）</div>
+    <textarea id="note" placeholder="備考"></textarea>
 
-  <button class="btn sub" onclick="edit()">変更する</button>
-</div>
+    <button class="btn main" onclick="submitShift()">送信</button>
+    <div id="submitError" class="error"></div>
+  </div>
 
+  <!-- 確認 -->
+  <div id="view" class="card hidden">
+    <div class="success">送信済みです。内容を確認できます。</div>
+
+    <div class="box">
+      <div class="muted">対象月</div>
+      <div id="viewMonth"></div>
+    </div>
+
+    <div class="box">
+      <div class="muted">休み希望日</div>
+      <div id="viewDates" class="chips"></div>
+    </div>
+
+    <div class="box">
+      <div class="muted">備考</div>
+      <div id="viewNote"></div>
+    </div>
+
+    <button class="btn sub" onclick="editShift()">変更する</button>
+  </div>
 </div>
 
 <script>
 const API = '/api/shift';
 const USER = 'demo-user-001';
+const DAYS = ['日','月','火','水','木','金','土'];
 
-let selected=[];
-let current=null;
+let selected = [];
+let currentData = null;
+let targetMonth = '';
 
-// ===== 初期 =====
-async function init(){
-  const res = await fetch(API+'?action=bootstrap&userId='+USER);
-  const json = await res.json();
-
-  if(json.mode==='bind'){
-    show('bind');
-    return;
-  }
-
-  if(json.mode==='view'){
-    current = json.data;
-    showView();
-    return;
-  }
-
-  if(json.mode==='input'){
-    show('input');
-    build();
-  }
-}
-
-// ===== 表示切替 =====
 function show(id){
   ['bind','input','view'].forEach(v=>{
     document.getElementById(v).classList.add('hidden');
@@ -142,100 +240,223 @@ function show(id){
   document.getElementById(id).classList.remove('hidden');
 }
 
-// ===== カレンダー =====
-function build(){
-  const cal=document.getElementById('calendar');
-  cal.innerHTML='';
+function monthTitle(ym){
+  if(!ym) return '';
+  const [y,m] = ym.split('-');
+  return `${y}年${Number(m)}月`;
+}
 
-  for(let i=1;i<=31;i++){
-    const d=document.createElement('div');
-    d.className='day';
-    d.innerText=i;
+function dayLabel(day){
+  if(!targetMonth) return `${day}日`;
+  const [y,m] = targetMonth.split('-').map(Number);
+  const d = new Date(y, m - 1, day);
+  return `${day}日（${DAYS[d.getDay()]}）`;
+}
 
-    if(selected.includes(i)) d.classList.add('selected');
+function buildCalendar(){
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
 
-    d.onclick=()=>{
+  DAYS.forEach(w=>{
+    const head = document.createElement('div');
+    head.className = 'week';
+    head.textContent = w;
+    cal.appendChild(head);
+  });
+
+  if(!targetMonth){
+    return;
+  }
+
+  const [y,m] = targetMonth.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+
+  for(let i=1;i<=lastDay;i++){
+    const d = new Date(y, m - 1, i);
+    const cell = document.createElement('div');
+    cell.className = 'day';
+    if(selected.includes(i)) cell.classList.add('selected');
+
+    cell.innerHTML = `
+      <div class="num">${i}</div>
+      <div class="dow">${DAYS[d.getDay()]}</div>
+    `;
+
+    cell.onclick = ()=>{
       if(selected.includes(i)){
-        selected=selected.filter(v=>v!==i);
+        selected = selected.filter(v=>v!==i);
       }else{
         selected.push(i);
+        selected.sort((a,b)=>a-b);
       }
-      render();
+      renderSelected();
+      buildCalendar();
     };
 
-    cal.appendChild(d);
+    cal.appendChild(cell);
   }
 }
 
-function render(){
-  build();
-  const el=document.getElementById('selected');
-  el.innerHTML='';
+function renderSelected(){
+  const el = document.getElementById('selected');
+  el.innerHTML = '';
+
+  if(selected.length === 0){
+    el.innerHTML = '<div class="muted">未選択</div>';
+    return;
+  }
+
   selected.forEach(d=>{
-    el.innerHTML+=`<span>${d}日 </span>`;
+    el.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
   });
 }
 
-// ===== 本人確認 =====
-async function bind(){
-  await fetch(API,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      action:'bindDriver',
-      userId:USER,
-      name:document.getElementById('name').value,
-      pin:document.getElementById('pin').value
-    })
-  });
-  location.reload();
-}
-
-// ===== 送信 =====
-async function submit(){
-  const res = await fetch(API,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      action:'submitShift',
-      userId:USER,
-      selectedDates:selected,
-      note:document.getElementById('note').value
-    })
-  });
-
-  const json = await res.json();
-
-  if(json.ok){
-    current={
-      selectedDates:selected,
-      note:document.getElementById('note').value
-    };
-    showView();
-  }
-}
-
-// ===== 表示 =====
 function showView(){
   show('view');
 
-  document.getElementById('viewDates').innerHTML =
-    current.selectedDates.map(v=>v+'日').join(',');
+  document.getElementById('viewMonth').innerText = monthTitle(currentData.targetMonth || targetMonth);
 
-  document.getElementById('viewNote').innerText =
-    current.note || '';
+  const datesEl = document.getElementById('viewDates');
+  datesEl.innerHTML = '';
+
+  const dates = currentData.selectedDates || [];
+  if(dates.length === 0){
+    datesEl.innerHTML = '<div class="muted">なし</div>';
+  }else{
+    dates.forEach(d=>{
+      datesEl.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
+    });
+  }
+
+  document.getElementById('viewNote').innerText = currentData.note || 'なし';
 }
 
-// ===== 編集 =====
-function edit(){
-  selected=current.selectedDates;
-  document.getElementById('note').value=current.note;
+async function init(){
+  try{
+    const res = await fetch(API + '?action=bootstrap&userId=' + encodeURIComponent(USER) + '&_t=' + Date.now(), {
+      cache: 'no-store'
+    });
+    const json = await res.json();
+
+    // 返り値の形に対応
+    const payload = json.data ? json.data : json;
+
+    if(json.ok === false){
+      document.getElementById('title').innerText = '読み込みエラー';
+      document.getElementById('subtitle').innerText = json.error || '取得に失敗しました';
+      return;
+    }
+
+    targetMonth = payload.targetMonth || '';
+    document.getElementById('title').innerText = targetMonth ? `${monthTitle(targetMonth)} シフト希望` : 'シフト希望';
+    document.getElementById('subtitle').innerText = payload.driverName ? `${payload.driverName} さん` : '確認しています...';
+
+    if(payload.mode === 'bind'){
+      show('bind');
+      return;
+    }
+
+    if(payload.mode === 'inactive'){
+      document.getElementById('subtitle').innerText = '利用対象外です';
+      return;
+    }
+
+    if(payload.mode === 'view' && payload.submitted){
+      currentData = payload.submitted;
+      targetMonth = currentData.targetMonth || targetMonth;
+      showView();
+      return;
+    }
+
+    if(payload.mode === 'input'){
+      selected = [];
+      currentData = null;
+      document.getElementById('note').value = '';
+      buildCalendar();
+      renderSelected();
+      show('input');
+      return;
+    }
+
+    document.getElementById('subtitle').innerText = '想定外の返り値です';
+  }catch(err){
+    document.getElementById('title').innerText = '通信エラー';
+    document.getElementById('subtitle').innerText = String(err);
+  }
+}
+
+async function bindUser(){
+  document.getElementById('bindError').innerText = '';
+
+  try{
+    const res = await fetch(API,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action:'bindDriver',
+        userId:USER,
+        name:document.getElementById('name').value.trim(),
+        pin:document.getElementById('pin').value.trim()
+      })
+    });
+
+    const json = await res.json();
+    if(!json.ok){
+      document.getElementById('bindError').innerText = json.error || '本人確認に失敗しました';
+      return;
+    }
+
+    await init();
+  }catch(err){
+    document.getElementById('bindError').innerText = String(err);
+  }
+}
+
+async function submitShift(){
+  document.getElementById('submitError').innerText = '';
+
+  try{
+    const res = await fetch(API,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action:'submitShift',
+        userId:USER,
+        targetMonth:targetMonth,
+        selectedDates:selected,
+        note:document.getElementById('note').value
+      })
+    });
+
+    const json = await res.json();
+
+    if(!json.ok){
+      document.getElementById('submitError').innerText = json.error || '送信に失敗しました';
+      return;
+    }
+
+    currentData = json.submitted || {
+      targetMonth,
+      selectedDates:[...selected],
+      note:document.getElementById('note').value
+    };
+    showView();
+  }catch(err){
+    document.getElementById('submitError').innerText = String(err);
+  }
+}
+
+function editShift(){
+  if(currentData){
+    selected = [...(currentData.selectedDates || [])];
+    document.getElementById('note').value = currentData.note || '';
+  }
+  buildCalendar();
+  renderSelected();
   show('input');
-  render();
 }
 
 init();
 </script>
-
 </body>
 </html>
