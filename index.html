@@ -72,6 +72,34 @@ body{
 
 .hidden{display:none !important;}
 
+.fade-in{
+  animation:fadeIn .22s ease both;
+}
+
+.pop-in{
+  animation:popIn .26s ease both;
+}
+
+.shake{
+  animation:shake .22s ease both;
+}
+
+@keyframes fadeIn{
+  from{opacity:0; transform:translateY(8px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+@keyframes popIn{
+  from{opacity:0; transform:scale(.985) translateY(6px);}
+  to{opacity:1; transform:scale(1) translateY(0);}
+}
+
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-4px);}
+  75%{transform:translateX(4px);}
+}
+
 .label{
   font-size:14px;
   font-weight:700;
@@ -109,11 +137,16 @@ textarea{
   margin-top:12px;
   font-size:16px;
   font-weight:700;
-  transition:transform .08s ease, opacity .12s ease;
+  transition:transform .08s ease, opacity .12s ease, filter .12s ease;
 }
 
 .btn:active{
   transform:scale(.99);
+}
+
+.btn[disabled]{
+  opacity:.7;
+  cursor:not-allowed;
 }
 
 .main{
@@ -273,6 +306,84 @@ textarea{
   background:#fafafa;
 }
 
+.loading-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(246,244,238,.55);
+  backdrop-filter:blur(2px);
+  z-index:999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease;
+}
+
+.loading-overlay.show{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.loading-box{
+  background:#fff;
+  border-radius:18px;
+  padding:16px 18px;
+  box-shadow:0 14px 28px rgba(0,0,0,.12);
+  min-width:180px;
+  text-align:center;
+}
+
+.spinner{
+  width:28px;
+  height:28px;
+  margin:0 auto 10px;
+  border:3px solid #ece7dc;
+  border-top-color:#111;
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+
+@keyframes spin{
+  to{ transform:rotate(360deg); }
+}
+
+.loading-title{
+  font-size:14px;
+  font-weight:700;
+  color:#222;
+}
+
+.loading-sub{
+  margin-top:4px;
+  font-size:12px;
+  color:#777;
+}
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%) translateY(14px);
+  background:#111;
+  color:#fff;
+  padding:11px 14px;
+  border-radius:999px;
+  font-size:13px;
+  box-shadow:0 10px 20px rgba(0,0,0,.18);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+  z-index:1000;
+  max-width:calc(100vw - 32px);
+  text-align:center;
+}
+
+.toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
 @media (max-width:380px){
   .wrap{
     padding:12px;
@@ -310,7 +421,7 @@ textarea{
     <div class="label">PIN</div>
     <input id="pin" placeholder="PIN" inputmode="numeric">
 
-    <button class="btn main" onclick="bindUser()">本人確認して開始</button>
+    <button id="bindBtn" class="btn main" onclick="bindUser()">本人確認して開始</button>
     <div id="bindError" class="error"></div>
   </div>
 
@@ -324,11 +435,13 @@ textarea{
     <div class="label" style="margin-top:16px;">備考（任意）</div>
     <textarea id="note" placeholder="備考"></textarea>
 
-    <button class="btn main" onclick="submitShift()">送信</button>
+    <button id="submitBtn" class="btn main" onclick="submitShift()">送信</button>
     <div id="submitError" class="error"></div>
   </div>
 
   <div id="view" class="card hidden">
+    <div id="successBanner" class="success hidden">送信が完了しました。</div>
+
     <div class="success">送信済みです。内容を確認できます。</div>
 
     <div class="box">
@@ -350,6 +463,16 @@ textarea{
   </div>
 </div>
 
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingTitle" class="loading-title">処理中...</div>
+    <div id="loadingSub" class="loading-sub">しばらくお待ちください</div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
 <script>
 const API = '/api/shift';
 const USER = 'demo-user-001';
@@ -358,6 +481,8 @@ const DAYS = ['日','月','火','水','木','金','土'];
 let selected = [];
 let currentData = null;
 let targetMonth = '';
+let isSubmitting = false;
+let isBinding = false;
 
 function getStorageKey(month = targetMonth){
   return `shift_cache_${USER}_${month || 'unknown'}`;
@@ -378,16 +503,15 @@ function loadLocalCache(month){
   }
 }
 
-function clearLocalCache(month){
-  if(!month) return;
-  localStorage.removeItem(getStorageKey(month));
-}
-
 function show(id){
   ['bind','input','view'].forEach(v=>{
-    document.getElementById(v).classList.add('hidden');
+    const el = document.getElementById(v);
+    el.classList.add('hidden');
+    el.classList.remove('fade-in');
   });
-  document.getElementById(id).classList.remove('hidden');
+  const target = document.getElementById(id);
+  target.classList.remove('hidden');
+  target.classList.add('fade-in');
 }
 
 function monthTitle(ym){
@@ -401,6 +525,38 @@ function dayLabel(day){
   const [y,m] = targetMonth.split('-').map(Number);
   const d = new Date(y, m - 1, day);
   return `${day}日（${DAYS[d.getDay()]}）`;
+}
+
+function setButtonLoading(btn, loading, loadingText, normalText){
+  if(!btn) return;
+  if(loading){
+    btn.dataset.normalText = normalText || btn.textContent;
+    btn.textContent = loadingText;
+    btn.disabled = true;
+  }else{
+    btn.textContent = btn.dataset.normalText || normalText || btn.textContent;
+    btn.disabled = false;
+  }
+}
+
+function showLoading(title = '処理中...', sub = 'しばらくお待ちください'){
+  document.getElementById('loadingTitle').textContent = title;
+  document.getElementById('loadingSub').textContent = sub;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function hideLoading(){
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+function showToast(message){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(()=>{
+    toast.classList.remove('show');
+  }, 1800);
 }
 
 function buildCalendar(){
@@ -453,6 +609,7 @@ function buildCalendar(){
     `;
 
     cell.onclick = ()=>{
+      if(isSubmitting) return;
       if(selected.includes(i)){
         selected = selected.filter(v=>v!==i);
       }else{
@@ -477,11 +634,11 @@ function renderSelected(){
   }
 
   selected.forEach(d=>{
-    el.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
+    el.innerHTML += `<span class="chip pop-in">${dayLabel(d)}</span>`;
   });
 }
 
-function showView(){
+function showView(showCompletion = false){
   show('view');
 
   document.getElementById('viewMonth').innerText =
@@ -495,11 +652,21 @@ function showView(){
     datesEl.innerHTML = '<div class="muted">なし</div>';
   }else{
     dates.forEach(d=>{
-      datesEl.innerHTML += `<span class="chip">${dayLabel(d)}</span>`;
+      datesEl.innerHTML += `<span class="chip pop-in">${dayLabel(d)}</span>`;
     });
   }
 
   document.getElementById('viewNote').innerText = currentData.note || 'なし';
+
+  const banner = document.getElementById('successBanner');
+  if(showCompletion){
+    banner.classList.remove('hidden');
+    banner.classList.add('pop-in');
+    showToast('送信が完了しました');
+  }else{
+    banner.classList.add('hidden');
+    banner.classList.remove('pop-in');
+  }
 }
 
 function enterInputModeWithCurrentData(){
@@ -517,6 +684,9 @@ function enterInputModeWithCurrentData(){
 
 async function init(){
   try{
+    showLoading('読み込み中...', '提出状況を確認しています');
+
+    const cachedMonthGuess = targetMonth;
     const res = await fetch(
       API + '?action=bootstrap&userId=' + encodeURIComponent(USER) + '&_t=' + Date.now(),
       { cache: 'no-store' }
@@ -528,6 +698,7 @@ async function init(){
     if(json.ok === false){
       document.getElementById('title').innerText = '読み込みエラー';
       document.getElementById('subtitle').innerText = json.error || '取得に失敗しました';
+      hideLoading();
       return;
     }
 
@@ -539,11 +710,13 @@ async function init(){
 
     if(payload.mode === 'bind'){
       show('bind');
+      hideLoading();
       return;
     }
 
     if(payload.mode === 'inactive'){
       document.getElementById('subtitle').innerText = '利用対象外です';
+      hideLoading();
       return;
     }
 
@@ -557,16 +730,21 @@ async function init(){
       targetMonth = currentData.targetMonth || targetMonth;
       selected = [...currentData.selectedDates];
       saveLocalCache(currentData);
-      showView();
+      showView(false);
+      hideLoading();
       return;
     }
 
     if(payload.mode === 'input'){
-      const cached = loadLocalCache(targetMonth);
-      if(cached && cached.targetMonth === targetMonth){
+      const cacheMonth = targetMonth || cachedMonthGuess;
+      const cached = loadLocalCache(cacheMonth);
+
+      if(cached && cached.targetMonth === cacheMonth){
         currentData = cached;
         selected = [...(currentData.selectedDates || [])];
-        showView();
+        targetMonth = currentData.targetMonth || targetMonth;
+        showView(false);
+        hideLoading();
         return;
       }
 
@@ -576,20 +754,30 @@ async function init(){
       buildCalendar();
       renderSelected();
       show('input');
+      hideLoading();
       return;
     }
 
     document.getElementById('subtitle').innerText = '想定外の返り値です';
+    hideLoading();
   }catch(err){
     document.getElementById('title').innerText = '通信エラー';
     document.getElementById('subtitle').innerText = String(err);
+    hideLoading();
   }
 }
 
 async function bindUser(){
+  if(isBinding) return;
+
   document.getElementById('bindError').innerText = '';
+  const btn = document.getElementById('bindBtn');
 
   try{
+    isBinding = true;
+    setButtonLoading(btn, true, '確認中...', '本人確認して開始');
+    showLoading('本人確認中...', '内容を照合しています');
+
     const res = await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -603,25 +791,44 @@ async function bindUser(){
 
     const json = await res.json();
     if(!json.ok){
+      const bindEl = document.getElementById('bind');
+      bindEl.classList.remove('shake');
+      void bindEl.offsetWidth;
+      bindEl.classList.add('shake');
+
       document.getElementById('bindError').innerText =
         json.error || '本人確認に失敗しました';
+      hideLoading();
       return;
     }
 
+    showToast('本人確認が完了しました');
     await init();
   }catch(err){
     document.getElementById('bindError').innerText = String(err);
+    hideLoading();
+  }finally{
+    isBinding = false;
+    setButtonLoading(btn, false, '確認中...', '本人確認して開始');
+    hideLoading();
   }
 }
 
 async function submitShift(){
+  if(isSubmitting) return;
+
   document.getElementById('submitError').innerText = '';
 
   if(selected.length === 0){
     document.getElementById('submitError').innerText = '休み希望日を選択してください';
+    const inputEl = document.getElementById('input');
+    inputEl.classList.remove('shake');
+    void inputEl.offsetWidth;
+    inputEl.classList.add('shake');
     return;
   }
 
+  const btn = document.getElementById('submitBtn');
   const draftData = {
     targetMonth,
     selectedDates: [...selected],
@@ -629,6 +836,10 @@ async function submitShift(){
   };
 
   try{
+    isSubmitting = true;
+    setButtonLoading(btn, true, '送信中...', '送信');
+    showLoading('送信中...', 'シフト希望を保存しています');
+
     const res = await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -646,6 +857,11 @@ async function submitShift(){
     if(!json.ok){
       document.getElementById('submitError').innerText =
         json.error || '送信に失敗しました';
+      const inputEl = document.getElementById('input');
+      inputEl.classList.remove('shake');
+      void inputEl.offsetWidth;
+      inputEl.classList.add('shake');
+      hideLoading();
       return;
     }
 
@@ -657,14 +873,24 @@ async function submitShift(){
 
     selected = [...(currentData.selectedDates || [])];
     saveLocalCache(currentData);
-    showView();
+
+    hideLoading();
+    requestAnimationFrame(()=>{
+      showView(true);
+    });
   }catch(err){
     document.getElementById('submitError').innerText = String(err);
+    hideLoading();
+  }finally{
+    isSubmitting = false;
+    setButtonLoading(btn, false, '送信中...', '送信');
+    hideLoading();
   }
 }
 
 function editShift(){
   enterInputModeWithCurrentData();
+  showToast('変更モードに切り替えました');
 }
 
 init();
