@@ -5,36 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>シフト希望</title>
 <style>
+:root{
+  --bg:#f6f4ee;
+  --text:#222;
+  --muted:#666;
+  --panel:#fff;
+  --line:#ddd;
+  --line-soft:#eee;
+  --brand:#111;
+  --accent:#ffd95c;
+  --accent-deep:#e0b93d;
+  --accent-soft:#fff4c7;
+  --success-bg:#eef8ef;
+  --success-line:#b9dcbd;
+  --success-text:#1f5f2a;
+  --info-bg:#fff6dc;
+  --info-line:#f0dfaa;
+  --danger:#b3261e;
+  --sun:#d04a3a;
+  --sat:#3f72c8;
+  --shadow-lg:0 10px 25px rgba(0,0,0,.12);
+  --shadow-md:0 10px 25px rgba(0,0,0,.08);
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
-  background:#f6f4ee;
-  color:#222;
+  background:var(--bg);
+  color:var(--text);
 }
+
 .wrap{
   max-width:420px;
   margin:auto;
   padding:16px;
 }
+
 .header{
-  background:#111;
+  background:linear-gradient(135deg,#111 0%,#1a1a1a 100%);
   color:#fff;
   padding:20px;
   border-radius:20px;
   margin-bottom:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,.12);
+  box-shadow:var(--shadow-lg);
 }
+
 .header small{
-  color:#ffd95c;
+  color:var(--accent);
   display:block;
   margin-bottom:6px;
+  font-weight:700;
+  letter-spacing:.02em;
 }
+
 .card{
-  background:#fff;
+  background:var(--panel);
   border-radius:20px;
   padding:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  box-shadow:var(--shadow-md);
 }
+
 .hidden{display:none !important;}
 
 .label{
@@ -42,20 +77,30 @@ body{
   font-weight:700;
   margin:10px 0 8px;
 }
+
 input, textarea{
   width:100%;
   box-sizing:border-box;
-  border:1px solid #ddd;
+  border:1px solid var(--line);
   border-radius:14px;
   padding:14px;
   font-size:16px;
   margin-bottom:10px;
   background:#fff;
+  transition:border-color .15s ease, box-shadow .15s ease;
 }
+
+input:focus, textarea:focus{
+  outline:none;
+  border-color:#c8c8c8;
+  box-shadow:0 0 0 4px rgba(0,0,0,.04);
+}
+
 textarea{
   min-height:100px;
   resize:vertical;
 }
+
 .btn{
   width:100%;
   padding:14px;
@@ -64,13 +109,26 @@ textarea{
   margin-top:12px;
   font-size:16px;
   font-weight:700;
+  transition:transform .08s ease, opacity .12s ease;
 }
-.main{background:#111;color:#fff;}
-.sub{background:#ffd95c;color:#111;}
+
+.btn:active{
+  transform:scale(.99);
+}
+
+.main{
+  background:var(--brand);
+  color:#fff;
+}
+
+.sub{
+  background:var(--accent);
+  color:#111;
+}
 
 .info{
-  background:#fff6dc;
-  border:1px solid #f0dfaa;
+  background:var(--info-bg);
+  border:1px solid var(--info-line);
   padding:12px;
   border-radius:14px;
   font-size:14px;
@@ -79,9 +137,9 @@ textarea{
 }
 
 .success{
-  background:#eef8ef;
-  border:1px solid #b9dcbd;
-  color:#1f5f2a;
+  background:var(--success-bg);
+  border:1px solid var(--success-line);
+  color:var(--success-text);
   padding:12px;
   border-radius:14px;
   font-size:14px;
@@ -96,67 +154,138 @@ textarea{
   gap:6px;
   margin-top:12px;
 }
+
 .week{
   text-align:center;
   font-size:11px;
   color:#777;
   font-weight:700;
+  padding-bottom:2px;
 }
+
+.week.sun{ color:var(--sun); }
+.week.sat{ color:var(--sat); }
+
 .day{
-  min-height:58px;
+  min-height:64px;
   padding:8px 4px;
   text-align:center;
-  border:1px solid #ddd;
+  border:1px solid var(--line);
   border-radius:12px;
   cursor:pointer;
   background:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+  user-select:none;
 }
+
+.day:hover{
+  box-shadow:0 4px 12px rgba(0,0,0,.05);
+}
+
+.day:active{
+  transform:scale(.98);
+}
+
+.day.blank{
+  border:none;
+  background:transparent;
+  box-shadow:none;
+  cursor:default;
+  min-height:64px;
+}
+
 .day .num{
   font-size:15px;
   font-weight:700;
+  line-height:1.1;
 }
+
 .day .dow{
   font-size:10px;
-  color:#888;
   margin-top:4px;
+  line-height:1;
 }
-.selected{
-  background:#ffd95c;
+
+.day.sun .num,
+.day.sun .dow{
+  color:var(--sun);
+}
+
+.day.sat .num,
+.day.sat .dow{
+  color:var(--sat);
+}
+
+.day.today{
+  border-color:#cfcfcf;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);
+}
+
+.day.selected{
+  background:linear-gradient(180deg,#ffe78a 0%, #ffd95c 100%);
   font-weight:bold;
-  border-color:#e0b93d;
+  border-color:var(--accent-deep);
+  box-shadow:0 8px 16px rgba(224,185,61,.24);
 }
-.selected .dow{
-  color:#5f4b00;
+
+.day.selected .num,
+.day.selected .dow{
+  color:#5f4b00 !important;
 }
+
 .chips{
   display:flex;
   flex-wrap:wrap;
   gap:8px;
   margin-top:10px;
 }
+
 .chip{
   display:inline-block;
   padding:7px 10px;
   border-radius:999px;
-  background:#fff4c7;
+  background:var(--accent-soft);
   font-size:13px;
+  border:1px solid #f0df9d;
 }
+
 .error{
-  color:#b3261e;
+  color:var(--danger);
   font-size:14px;
   margin-top:10px;
   white-space:pre-wrap;
 }
+
 .muted{
-  color:#666;
+  color:var(--muted);
   font-size:14px;
 }
+
 .box{
-  border:1px solid #eee;
+  border:1px solid var(--line-soft);
   border-radius:14px;
   padding:12px;
   margin-top:10px;
   background:#fafafa;
+}
+
+@media (max-width:380px){
+  .wrap{
+    padding:12px;
+  }
+  .day{
+    min-height:58px;
+  }
+  .day.blank{
+    min-height:58px;
+  }
+  .day .num{
+    font-size:14px;
+  }
 }
 </style>
 </head>
@@ -257,9 +386,12 @@ function buildCalendar(){
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
 
-  DAYS.forEach(w=>{
+  // 曜日ヘッダー
+  DAYS.forEach((w, index)=>{
     const head = document.createElement('div');
     head.className = 'week';
+    if(index === 0) head.classList.add('sun');
+    if(index === 6) head.classList.add('sat');
     head.textContent = w;
     cal.appendChild(head);
   });
@@ -269,17 +401,36 @@ function buildCalendar(){
   }
 
   const [y,m] = targetMonth.split('-').map(Number);
+  const firstDay = new Date(y, m - 1, 1).getDay();
   const lastDay = new Date(y, m, 0).getDate();
 
-  for(let i=1;i<=lastDay;i++){
+  const today = new Date();
+  const isCurrentMonth =
+    today.getFullYear() === y &&
+    today.getMonth() === m - 1;
+
+  // 月初まで空白を入れる
+  for(let i=0; i<firstDay; i++){
+    const blank = document.createElement('div');
+    blank.className = 'day blank';
+    cal.appendChild(blank);
+  }
+
+  for(let i=1; i<=lastDay; i++){
     const d = new Date(y, m - 1, i);
+    const dow = d.getDay();
+
     const cell = document.createElement('div');
     cell.className = 'day';
+
+    if(dow === 0) cell.classList.add('sun');
+    if(dow === 6) cell.classList.add('sat');
+    if(isCurrentMonth && today.getDate() === i) cell.classList.add('today');
     if(selected.includes(i)) cell.classList.add('selected');
 
     cell.innerHTML = `
       <div class="num">${i}</div>
-      <div class="dow">${DAYS[d.getDay()]}</div>
+      <div class="dow">${DAYS[dow]}</div>
     `;
 
     cell.onclick = ()=>{
@@ -338,7 +489,6 @@ async function init(){
     });
     const json = await res.json();
 
-    // 返り値の形に対応
     const payload = json.data ? json.data : json;
 
     if(json.ok === false){
